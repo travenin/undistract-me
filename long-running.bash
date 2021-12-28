@@ -33,6 +33,13 @@ else
     echo "Could not find preexec.bash"
 fi
 
+if [ -z "$NOTIFY_ME_CONFIG" ]; then
+    NOTIFY_ME_CONFIG=~/.config/undistract-me/config
+fi
+
+if [ -f "$NOTIFY_ME_CONFIG" ]; then
+    . $NOTIFY_ME_CONFIG
+fi
 
 function notify_when_long_running_commands_finish_install() {
 
@@ -100,6 +107,26 @@ function notify_when_long_running_commands_finish_install() {
                         "$__udm_last_command"
                         if [[ "$UDM_PLAY_SOUND" != 0 ]]; then
                             paplay /usr/share/sounds/freedesktop/stereo/complete.oga
+                        fi
+
+                        if [ ! -z "$NOTIFY_ME_ENDPOINT" ] &&
+                            [ ! -z "$NOTIFY_ME_API_KEY" ] ; then
+                            gdbus call \
+                                -e -d org.gnome.SessionManager \
+                                -o /org/gnome/SessionManager/Presence \
+                                -m org.freedesktop.DBus.Properties.Get org.gnome.SessionManager.Presence status \
+                                | grep -q "uint32 3"
+
+                            local user_is_afk=$?
+
+                            if [ $user_is_afk -eq 0 ] ; then
+                                curl -s $NOTIFY_ME_ENDPOINT \
+                                    -X POST \
+                                    -H "Content-Type: application/json" \
+                                    -H "x-api-key: $NOTIFY_ME_API_KEY" \
+                                    -d "{\"message\":\"Command completed in $time_taken_human: $__udm_last_command\"}" \
+                                    > /dev/null
+                            fi
                         fi
                     else
                         echo -ne "\a"
