@@ -120,11 +120,14 @@ function notify_when_long_running_commands_finish_install() {
                             local user_is_afk=$?
 
                             if [ $user_is_afk -eq 0 ] ; then
+                                local msg_data=$(jq --null-input \
+                                    --arg message "Command completed in $time_taken_human: $__udm_last_command" \
+                                    '{"message": $message}')
                                 curl -s $NOTIFY_ME_ENDPOINT \
                                     -X POST \
                                     -H "Content-Type: application/json" \
                                     -H "x-api-key: $NOTIFY_ME_API_KEY" \
-                                    -d "{\"message\":\"Command completed in $time_taken_human: $__udm_last_command\"}" \
+                                    -d "$msg_data" \
                                     > /dev/null
                             fi
                         fi
